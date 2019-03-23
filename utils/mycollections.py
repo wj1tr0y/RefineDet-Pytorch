@@ -1,14 +1,3 @@
-#!/usr/bin/env python
-# coding=UTF-8
-'''
-@Author: Jilong Wang
-@LastEditors: Jilong Wang
-@Email: jilong.wang@watrix.ai
-@Description: file content
-@Date: 2019-03-23 16:20:20
-@LastEditTime: 2019-03-23 16:25:32
-'''
-
 # Copyright (c) 2017-present, Facebook, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,6 +13,7 @@
 # limitations under the License.
 ##############################################################################
 """A simple attribute dictionary used for representing configuration options."""
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
