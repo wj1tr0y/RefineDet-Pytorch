@@ -6,7 +6,7 @@
 @Email: jilong.wang@watrix.ai
 @Description: file content
 @Date: 2019-03-22 17:55:02
-@LastEditTime: 2019-03-22 18:33:13
+@LastEditTime: 2019-03-23 16:38:12
 '''
 """VOC Dataset Classes
 
@@ -161,6 +161,7 @@ class COCODetection(data.Dataset):
             self._annotation_from_index(index, _COCO) for index in indexes
         ]
         with open(cache_file, 'wb') as fid:
+            print('writing gt roidb to {}'.format(cache_file))
             pickle.dump(gt_roidb, fid, pickle.HIGHEST_PROTOCOL)
         print('wrote gt roidb to {}'.format(cache_file))
         return gt_roidb
