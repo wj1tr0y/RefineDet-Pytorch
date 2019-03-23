@@ -6,7 +6,7 @@
 @Email: jilong.wang@watrix.ai
 @Description: file content
 @Date: 2019-03-22 17:55:02
-@LastEditTime: 2019-03-23 16:38:12
+@LastEditTime: 2019-03-23 16:41:49
 '''
 """VOC Dataset Classes
 
@@ -139,8 +139,8 @@ class COCODetection(data.Dataset):
         # file_name = ('COCO_' + name + '_' + str(index).zfill(12) + '.jpg')
         file_name = (str(index).zfill(12) + '.jpg')
         image_path = os.path.join(self.root, 'images', name, file_name)
-        assert os.path.exists(image_path), \
-                'Path does not exist: {}'.format(image_path)
+        # assert os.path.exists(image_path), \
+        #         'Path does not exist: {}'.format(image_path)
         return image_path
 
     def _get_ann_file(self, name):
