@@ -1,3 +1,13 @@
+#!/usr/bin/env python
+# coding=UTF-8
+'''
+@Author: Jilong Wang
+@LastEditors: Jilong Wang
+@Email: jilong.wang@watrix.ai
+@Description: file content
+@Date: 2019-03-23 16:20:08
+@LastEditTime: 2019-03-23 16:20:08
+'''
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
