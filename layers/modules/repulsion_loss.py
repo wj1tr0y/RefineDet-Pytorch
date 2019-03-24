@@ -6,14 +6,14 @@
 @Email: jilong.wang@watrix.ai
 @Description: file content
 @Date: 2019-03-22 15:41:28
-@LastEditTime: 2019-03-23 15:06:47
+@LastEditTime: 2019-03-24 19:09:07
 '''
 from __future__ import division
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
-from utils.box_utils import IoG, decode_new
+from utils.box_utils import IoG, decode
 import sys
 
 
@@ -30,8 +30,9 @@ class RepulsionLoss(nn.Module):
         pass
 
     def forward(self, loc_data, ground_data, prior_data):
-        print(loc_data.size(),prior_data.size())
-        decoded_boxes = decode_new(loc_data, Variable(prior_data.data, requires_grad=False), self.variance)
+        
+        decoded_boxes = decode(loc_data, prior_data, self.variance)
+        
         iog = IoG(ground_data, decoded_boxes)
         # sigma = 1
         # loss = torch.sum(-torch.log(1-iog+1e-10))  

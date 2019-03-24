@@ -5,8 +5,8 @@
 @LastEditors: Jilong Wang
 @Email: jilong.wang@watrix.ai
 @Description: file content
-@Date: 2019-03-22 15:40:22
-@LastEditTime: 2019-03-23 15:18:41
+@Date: 2019-03-24 19:02:11
+@LastEditTime: 2019-03-24 19:20:01
 '''
 # -*- coding: utf-8 -*-
 # Written by yq_yao
@@ -21,6 +21,7 @@ from layers.modules import WeightSoftmaxLoss, WeightSmoothL1Loss
 from .focal_loss_sigmoid import FocalLossSigmoid
 from .focal_loss_softmax import FocalLossSoftmax
 from .repulsion_loss import RepulsionLoss
+
 GPU = False
 if torch.cuda.is_available():
     GPU = True
@@ -39,9 +40,9 @@ class RefineMultiBoxLoss(nn.Module):
            that comes with using a large number of default bounding boxes.
            (default negative:positive ratio 3:1)
     Objective Loss:
-        L(x,c,l,g) = (Lconf(x, c) + αLloc(x,l,g)) / N
+        L(x,c,l,g) = (Lconf(x, c) + ?Lloc(x,l,g)) / N
         Where, Lconf is the CrossEntropy Loss and Lloc is the SmoothL1 Loss
-        weighted by α which is set to 1 by cross val.
+        weighted by ? which is set to 1 by cross val.
         Args:
             c: class confidences,
             l: predicted boxes,
@@ -101,8 +102,8 @@ class RefineMultiBoxLoss(nn.Module):
 
         # match priors (default boxes) and ground truth boxes
         loc_t = torch.Tensor(num, num_priors, 4)
-        loc_g = torch.Tensor(num, num_priors, 4)
         conf_t = torch.LongTensor(num, num_priors)
+        loc_g = torch.Tensor(num, num_priors, 4)
         defaults = priors.data
         for idx in range(num):
             predicts = loc_data[idx].data
@@ -124,11 +125,12 @@ class RefineMultiBoxLoss(nn.Module):
                     use_weight=False)
             else:
                 match(self.threshold, predicts, truths, defaults, self.variance, labels,
-                      loc_t, loc_g, conf_t, idx)
+                  loc_t, loc_g, conf_t, idx)
 
         loc_t = loc_t.cuda()
         loc_g = loc_g.cuda()
         conf_t = conf_t.cuda()
+
         # wrap targets
         loc_t = Variable(loc_t, requires_grad=False)
         loc_g = Variable(loc_g, requires_grad=False)
@@ -157,10 +159,7 @@ class RefineMultiBoxLoss(nn.Module):
                 1, conf_t.view(-1, 1))
 
             # Hard Negative Mining
-            print(pos.view(-1,1).size())
-            print(pos.size())
-            
-            loss_c[pos.view(-1,1)] = 0  # filter out pos boxes for now
+            loss_c[pos.view(-1, 1)] = 0  # filter out pos boxes for now
             loss_c = loss_c.view(num, -1)
             _, loss_idx = loss_c.sort(1, descending=True)
             _, idx_rank = loss_idx.sort(1)
@@ -196,8 +195,16 @@ class RefineMultiBoxLoss(nn.Module):
             loss_l = F.smooth_l1_loss(loc_p, loc_t, size_average=False)
             if not use_arm:
                 loc_g = loc_g[pos_idx].view(-1, 4)
+                priors = priors.expand_as(pos_idx)
+                priors = priors[pos_idx].view(-1, 4)
+                # c = torch.randn((5,16340,4))
+                # c = c.cuda()
+                # c = Variable(c, requires_grad=False)
+                
+                # c = c[pos_idx].view(-1, 4)
                 repul_loss = RepulsionLoss(sigma=0., variance=self.variance)
                 loss_l_repul = repul_loss(loc_p, loc_g, priors)
+
             N = num_pos.data.sum()
         else:
             loss_l = torch.zeros(1)
@@ -208,5 +215,4 @@ class RefineMultiBoxLoss(nn.Module):
         if not use_arm:
             loss_l_repul /= float(N)
             return loss_l, loss_c, loss_l_repul
-        else:
-            return loss_l, loss_c
+        return loss_l, loss_c

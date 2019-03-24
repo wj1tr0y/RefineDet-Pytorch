@@ -5,8 +5,8 @@
 @LastEditors: Jilong Wang
 @Email: jilong.wang@watrix.ai
 @Description: file content
-@Date: 2019-03-22 15:43:27
-@LastEditTime: 2019-03-23 15:11:20
+@Date: 2019-03-24 19:01:30
+@LastEditTime: 2019-03-24 19:10:47
 '''
 import torch
 import torch.nn as nn
@@ -134,7 +134,7 @@ def jaccard(box_a, box_b):
     is simply the intersection over union of two boxes.  Here we operate on
     ground truth boxes and default boxes.
     E.g.:
-        A ∩ B / A ∪ B = A ∩ B / (area(A) + area(B) - A ∩ B)
+        A ? B / A ? B = A ? B / (area(A) + area(B) - A ? B)
     Args:
         box_a: (tensor) Ground truth bounding boxes, Shape: [num_objects,4]
         box_b: (tensor) Prior boxes from priorbox layers, Shape: [num_priors,4]
@@ -163,69 +163,26 @@ def matrix_iou(a, b):
     area_a = np.prod(a[:, 2:] - a[:, :2], axis=1)
     area_b = np.prod(b[:, 2:] - b[:, :2], axis=1)
     return area_i / (area_a[:, np.newaxis] + area_b - area_i)
-
-def match_rep(threshold, predicts, truths, priors, variances, labels, loc_t, loc_g, conf_t, idx):
-    """Match each prior box with the ground truth box of the highest jaccard
-    overlap, encode the bounding boxes, then return the matched indices
-    corresponding to both confidence and location preds.
-    new update: Match each predict box with the second largest target
+    
+def IoG(box_a, box_b):
+    """Compute the IoG of two sets of boxes.  
+    E.g.:
+        A ? B / A = A ? B / area(A)
     Args:
-        threshold: (float) The overlap threshold used when mathing boxes.
-        predicts: (tensor) encoded predict boxes, Shape: [num_obj, num_priors].
-        truths: (tensor) Ground truth boxes, Shape: [num_obj, num_priors].
-        priors: (tensor) Prior boxes from priorbox layers, Shape: [n_priors,4].
-        variances: (tensor) Variances corresponding to each prior coord,
-            Shape: [num_priors, 4].
-        labels: (tensor) All the class labels for the image, Shape: [num_obj].
-        loc_t: (tensor) Tensor to be filled w/ encoded location targets.
-        loc_g: (tensor) Tensor to be filled w/ decoded second largest location targets.
-        conf_t: (tensor) Tensor to be filled w/ matched indices for conf preds.
-        idx: (int) current batch index
+        box_a: (tensor) Ground truth bounding boxes, Shape: [num_objects,4]
+        box_b: (tensor) Prior boxes from priorbox layers, Shape: [num_objects,4]
     Return:
-        The matched indices corresponding to 1)location and 2)confidence preds.
+        IoG: (tensor) Shape: [num_objects]
     """
-    # jaccard index
-    overlaps = jaccard(
-        truths,
-        point_form(priors)
-    )
-    # (Bipartite Matching)
-    # [1,num_objects] best prior for each ground truth
-    best_prior_overlap, best_prior_idx = overlaps.max(1, keepdim=True)
-    # [1,num_priors] best ground truth for each prior
-    best_truth_overlap, best_truth_idx = overlaps.max(0, keepdim=True)
-    best_truth_idx.squeeze_(0)
-    best_truth_overlap.squeeze_(0)
-    best_prior_idx.squeeze_(1)
-    best_prior_overlap.squeeze_(1)       
-    best_truth_overlap.index_fill_(0, best_prior_idx, 2)  # ensure best prior
-    # TODO refactor: index  best_prior_idx with long tensor
-    # ensure every gt matches with its prior of max overlap
-    for j in range(best_prior_idx.size(0)):
-        best_truth_idx[best_prior_idx[j]] = j
-    
-    matches = truths[best_truth_idx]   
-    conf = labels[best_truth_idx] + 1         # Shape: [num_priors]
-    conf[best_truth_overlap < threshold] = 0  # label as background
-    loc = encode(matches, priors, variances)
-    loc_t[idx] = loc    # [num_priors,4] encoded offsets to learn
-    conf_t[idx] = conf  # [num_priors] top class label for each prior
-    
-    # jaccard index, predict with gt, not anchor with gt
-    predicts = decode(predicts, priors, variances)
-    overlaps = jaccard(
-        truths,
-        predicts
-    )    
-#     for i in range(best_truth_idx.size(0)):
-#         overlaps[best_truth_idx[i]][i] = -1
-    # TODO select the second largest IoU target from the same class
-    index = torch.unsqueeze(best_truth_idx, 0)
-    overlaps.scatter_(0, index, -1)
-    second_truth_overlap, second_truth_idx = overlaps.max(0, keepdim=True)    
-    second_truth_idx.squeeze_(0)
-    matches_G = truths[second_truth_idx] 
-    loc_g[idx] = matches_G
+    inter_xmin = torch.max(box_a[:, 0], box_b[:, 0])
+    inter_ymin = torch.max(box_a[:, 1], box_b[:, 1])
+    inter_xmax = torch.min(box_a[:, 2], box_b[:, 2])
+    inter_ymax = torch.min(box_a[:, 3], box_b[:, 3])
+    Iw = torch.clamp(inter_xmax - inter_xmin, min=0)
+    Ih = torch.clamp(inter_ymax - inter_ymin, min=0)  
+    I = Iw * Ih
+    G = (box_a[:, 2] - box_a[:, 0]) * (box_a[:, 3] - box_a[:, 1])
+    return I / G
 
 def match(threshold, predicts, truths, priors, variances, labels, loc_t, loc_g, conf_t, idx):
     """Match each prior box with the ground truth box of the highest jaccard
@@ -268,7 +225,7 @@ def match(threshold, predicts, truths, priors, variances, labels, loc_t, loc_g, 
         best_truth_idx[best_prior_idx[j]] = j
     
     matches = truths[best_truth_idx]   
-    conf = labels[best_truth_idx] + 1         # Shape: [num_priors]
+    conf = labels[best_truth_idx]        # Shape: [num_priors]
     conf[best_truth_overlap < threshold] = 0  # label as background
     loc = encode(matches, priors, variances)
     loc_t[idx] = loc    # [num_priors,4] encoded offsets to learn
@@ -289,8 +246,6 @@ def match(threshold, predicts, truths, priors, variances, labels, loc_t, loc_g, 
     second_truth_idx.squeeze_(0)
     matches_G = truths[second_truth_idx] 
     loc_g[idx] = matches_G
-
-
 
 def refine_match(threshold,
                  truths,
@@ -442,44 +397,6 @@ def decode(loc, priors, variances):
     boxes[:, 2:] += boxes[:, :2]
     return boxes
 
-def IoG(box_a, box_b):
-    """Compute the IoG of two sets of boxes.  
-    E.g.:
-        A ? B / A = A ? B / area(A)
-    Args:
-        box_a: (tensor) Ground truth bounding boxes, Shape: [num_objects,4]
-        box_b: (tensor) Prior boxes from priorbox layers, Shape: [num_objects,4]
-    Return:
-        IoG: (tensor) Shape: [num_objects]
-    """
-    inter_xmin = torch.max(box_a[:, 0], box_b[:, 0])
-    inter_ymin = torch.max(box_a[:, 1], box_b[:, 1])
-    inter_xmax = torch.min(box_a[:, 2], box_b[:, 2])
-    inter_ymax = torch.min(box_a[:, 3], box_b[:, 3])
-    Iw = torch.clamp(inter_xmax - inter_xmin, min=0)
-    Ih = torch.clamp(inter_ymax - inter_ymin, min=0)  
-    I = Iw * Ih
-    G = (box_a[:, 2] - box_a[:, 0]) * (box_a[:, 3] - box_a[:, 1])
-    return I / G
-
-def decode_new(loc, priors, variances):
-    """Decode locations from predictions using priors to undo
-    the encoding we did for offset regression at train time.
-    Args:
-        loc (tensor): location predictions for loc layers,
-            Shape: [num_priors,4]
-        priors (tensor): Prior boxes in center-offset form.
-            Shape: [num_priors,4].
-        variances: (list[float]) Variances of priorboxes
-    Return:
-        decoded bounding box predictions
-    """
-    boxes = torch.cat((
-        priors[:, :2] + loc[:, :2] * variances[0] * priors[:, 2:],
-        priors[:, 2:] * torch.exp(loc[:, 2:] * variances[1])), 1)
-    boxes[:, :2] = boxes[:, :2] - boxes[:, 2:] / 2
-    boxes[:, 2:] = boxes[:, 2:] + boxes[:, :2]
-    return boxes
 
 def decode_multi(loc, priors, offsets, variances):
     """Decode locations from predictions using priors to undo

@@ -6,7 +6,7 @@
 @Email: jilong.wang@watrix.ai
 @Description: file content
 @Date: 2019-03-22 17:45:34
-@LastEditTime: 2019-03-23 15:12:02
+@LastEditTime: 2019-03-24 19:27:35
 '''
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -112,13 +112,12 @@ def train(train_loader, net, criterion, optimizer, epoch, epoch_step, gamma,
             loss_l, loss_c = ssd_criterion(output, targets)
             loss = loss_l + loss_c
         else:
-            print('use refine')
             arm_criterion = criterion[0]
             odm_criterion = criterion[1]
             arm_loss_l, arm_loss_c, arm_loss_l_repul = arm_criterion(output, targets)
             odm_loss_l, odm_loss_c = odm_criterion(
                 output, targets, use_arm=True, filter_object=True)
-            loss = arm_loss_l + arm_loss_c + odm_loss_l + odm_loss_c + arm_loss_l_repul
+            loss = arm_loss_l + arm_loss_c + odm_loss_l + odm_loss_c + 2 * arm_loss_l_repul
         loss.backward()
         optimizer.step()
         t1 = time.time()
@@ -137,8 +136,8 @@ def train(train_loader, net, criterion, optimizer, epoch, epoch_step, gamma,
             else:
                 print('Epoch:' + repr(epoch) + ' || epochiter: ' +
                       repr(iteration % epoch_size) + '/' + repr(epoch_size) +
-                      '|| arm_L: %.4f arm_C: %.4f||' %
-                      (arm_loss_l.item(), arm_loss_c.item()) +
+                      '|| arm_L: %.4f arm_C: %.4f arm_repul_loss: %.4f||' %
+                      (arm_loss_l.item(), arm_loss_c.item(), arm_loss_l_repul.item()) +
                       ' odm_L: %.4f odm_C: %.4f||' %
                       (odm_loss_l.item(), odm_loss_c.item()) +
                       ' loss: %.4f||' % (loss.item()) +
