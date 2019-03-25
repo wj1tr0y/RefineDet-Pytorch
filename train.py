@@ -6,7 +6,7 @@
 @Email: jilong.wang@watrix.ai
 @Description: file content
 @Date: 2019-03-22 17:45:34
-@LastEditTime: 2019-03-24 19:27:35
+@LastEditTime: 2019-03-25 18:19:38
 '''
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -319,8 +319,6 @@ def main():
             collate_fn=detection_collate)
         train(train_loader, net, criterion, optimizer, epoch, epoch_step,
               gamma, end_epoch, cfg)
-        if (epoch % 10 == 0) or (epoch % 5 == 0 and epoch >= 200):
-            save_checkpoint(net, epoch, size, optimizer)
         if (epoch >= 50 and epoch % 10 == 0):
             eval_net(
                 val_dataset,
@@ -332,7 +330,7 @@ def main():
                 top_k,
                 thresh=thresh,
                 batch_size=batch_size)
-    save_checkpoint(net, end_epoch, size, optimizer)
+        save_checkpoint(net, end_epoch, size, optimizer)
 
 
 if __name__ == '__main__':
