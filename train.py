@@ -6,7 +6,7 @@
 @Email: jilong.wang@watrix.ai
 @Description: file content
 @Date: 2019-03-22 17:45:34
-@LastEditTime: 2019-03-25 18:19:38
+@LastEditTime: 2019-03-25 18:29:53
 '''
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -117,7 +117,7 @@ def train(train_loader, net, criterion, optimizer, epoch, epoch_step, gamma,
             arm_loss_l, arm_loss_c, arm_loss_l_repul = arm_criterion(output, targets)
             odm_loss_l, odm_loss_c = odm_criterion(
                 output, targets, use_arm=True, filter_object=True)
-            loss = arm_loss_l + arm_loss_c + odm_loss_l + odm_loss_c + 2 * arm_loss_l_repul
+            loss = arm_loss_l + arm_loss_c + odm_loss_l + odm_loss_c + arm_loss_l_repul
         loss.backward()
         optimizer.step()
         t1 = time.time()

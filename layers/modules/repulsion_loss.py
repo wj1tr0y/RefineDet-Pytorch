@@ -6,7 +6,7 @@
 @Email: jilong.wang@watrix.ai
 @Description: file content
 @Date: 2019-03-22 15:41:28
-@LastEditTime: 2019-03-25 18:16:53
+@LastEditTime: 2019-03-25 18:27:58
 '''
 from __future__ import division
 import torch
@@ -104,5 +104,5 @@ class RepulsionLoss(nn.Module):
     def forward(self, loc_data, ground_data, prior_data, pos_idx):
         
         loss_repgt, loss_repbox = self.repulsion(loc_data, ground_data, prior_data, pos_idx)
-        loss = torch.sum(loss_repgt)+ torch.sum(loss_repbox)      
+        loss = torch.sum(loss_repgt) + torch.sum(loss_repbox)      
         return loss
