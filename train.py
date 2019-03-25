@@ -6,7 +6,7 @@
 @Email: jilong.wang@watrix.ai
 @Description: file content
 @Date: 2019-03-22 17:45:34
-@LastEditTime: 2019-03-25 18:29:53
+@LastEditTime: 2019-03-25 18:32:20
 '''
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -319,7 +319,7 @@ def main():
             collate_fn=detection_collate)
         train(train_loader, net, criterion, optimizer, epoch, epoch_step,
               gamma, end_epoch, cfg)
-        if (epoch >= 50 and epoch % 10 == 0):
+        if (epoch >= 10 and epoch % 5 == 0):
             eval_net(
                 val_dataset,
                 val_loader,
