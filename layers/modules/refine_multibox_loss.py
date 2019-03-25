@@ -6,7 +6,7 @@
 @Email: jilong.wang@watrix.ai
 @Description: file content
 @Date: 2019-03-24 19:02:11
-@LastEditTime: 2019-03-25 18:29:47
+@LastEditTime: 2019-03-25 18:37:12
 '''
 # -*- coding: utf-8 -*-
 # Written by yq_yao
@@ -199,7 +199,7 @@ class RefineMultiBoxLoss(nn.Module):
             gt_bboxes = [x[:,:-1] for x in targets]
             reploss = RepulsionLoss(variance=self.variance)
             arm_rep_loss = reploss(loc_data, gt_bboxes, priors, pos_idx)
-            return loss_l, loss_c, arm_rep_loss
+            return loss_l, loss_c, arm_rep_loss / float(num)
 
 
         return loss_l, loss_c
