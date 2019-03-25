@@ -6,7 +6,7 @@
 @Email: jilong.wang@watrix.ai
 @Description: file content
 @Date: 2019-03-24 19:01:30
-@LastEditTime: 2019-03-24 19:10:47
+@LastEditTime: 2019-03-25 16:17:34
 '''
 import torch
 import torch.nn as nn
@@ -184,68 +184,53 @@ def IoG(box_a, box_b):
     G = (box_a[:, 2] - box_a[:, 0]) * (box_a[:, 3] - box_a[:, 1])
     return I / G
 
-def match(threshold, predicts, truths, priors, variances, labels, loc_t, loc_g, conf_t, idx):
+def match(threshold, truths, priors, variances, labels, loc_t, conf_t, idx):
     """Match each prior box with the ground truth box of the highest jaccard
     overlap, encode the bounding boxes, then return the matched indices
     corresponding to both confidence and location preds.
-    new update: Match each predict box with the second largest target
     Args:
         threshold: (float) The overlap threshold used when mathing boxes.
-        predicts: (tensor) encoded predict boxes, Shape: [num_obj, num_priors].
         truths: (tensor) Ground truth boxes, Shape: [num_obj, num_priors].
         priors: (tensor) Prior boxes from priorbox layers, Shape: [n_priors,4].
         variances: (tensor) Variances corresponding to each prior coord,
             Shape: [num_priors, 4].
         labels: (tensor) All the class labels for the image, Shape: [num_obj].
-        loc_t: (tensor) Tensor to be filled w/ encoded location targets.
-        loc_g: (tensor) Tensor to be filled w/ decoded second largest location targets.
+        loc_t: (tensor) Tensor to be filled w/ endcoded location targets.
         conf_t: (tensor) Tensor to be filled w/ matched indices for conf preds.
         idx: (int) current batch index
     Return:
         The matched indices corresponding to 1)location and 2)confidence preds.
     """
     # jaccard index
-    overlaps = jaccard(
-        truths,
-        point_form(priors)
-    )
+    overlaps = jaccard(truths, point_form(priors))
+    # print(overlaps.size())
+    # overlaps = matrix_iou(truths, point_form(priors))
     # (Bipartite Matching)
     # [1,num_objects] best prior for each ground truth
     best_prior_overlap, best_prior_idx = overlaps.max(1, keepdim=True)
+    # print(best_prior_overlap)
+    # print(best_prior_idx)
     # [1,num_priors] best ground truth for each prior
     best_truth_overlap, best_truth_idx = overlaps.max(0, keepdim=True)
+    # print(best_truth_overlap)
+    # print(best_truth_idx)
     best_truth_idx.squeeze_(0)
     best_truth_overlap.squeeze_(0)
     best_prior_idx.squeeze_(1)
-    best_prior_overlap.squeeze_(1)       
+    best_prior_overlap.squeeze_(1)
     best_truth_overlap.index_fill_(0, best_prior_idx, 2)  # ensure best prior
+    # import sys
+    # sys.exit()
     # TODO refactor: index  best_prior_idx with long tensor
     # ensure every gt matches with its prior of max overlap
     for j in range(best_prior_idx.size(0)):
         best_truth_idx[best_prior_idx[j]] = j
-    
-    matches = truths[best_truth_idx]   
-    conf = labels[best_truth_idx]        # Shape: [num_priors]
+    matches = truths[best_truth_idx]  # Shape: [num_priors,4]
+    conf = labels[best_truth_idx]  # Shape: [num_priors]
     conf[best_truth_overlap < threshold] = 0  # label as background
     loc = encode(matches, priors, variances)
-    loc_t[idx] = loc    # [num_priors,4] encoded offsets to learn
+    loc_t[idx] = loc  # [num_priors,4] encoded offsets to learn
     conf_t[idx] = conf  # [num_priors] top class label for each prior
-    
-    # jaccard index, predict with gt, not anchor with gt
-    predicts = decode(predicts, priors, variances)
-    overlaps = jaccard(
-        truths,
-        predicts
-    )    
-#     for i in range(best_truth_idx.size(0)):
-#         overlaps[best_truth_idx[i]][i] = -1
-    # TODO select the second largest IoU target from the same class
-    index = torch.unsqueeze(best_truth_idx, 0)
-    overlaps.scatter_(0, index, -1)
-    second_truth_overlap, second_truth_idx = overlaps.max(0, keepdim=True)    
-    second_truth_idx.squeeze_(0)
-    matches_G = truths[second_truth_idx] 
-    loc_g[idx] = matches_G
 
 def refine_match(threshold,
                  truths,

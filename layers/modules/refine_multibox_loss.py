@@ -6,7 +6,7 @@
 @Email: jilong.wang@watrix.ai
 @Description: file content
 @Date: 2019-03-24 19:02:11
-@LastEditTime: 2019-03-24 19:20:01
+@LastEditTime: 2019-03-25 16:34:23
 '''
 # -*- coding: utf-8 -*-
 # Written by yq_yao
@@ -86,7 +86,6 @@ class RefineMultiBoxLoss(nn.Module):
                 conf shape: torch.size(batch_size,num_priors,num_classes)
                 loc shape: torch.size(batch_size,num_priors,4)
                 priors shape: torch.size(num_priors,4)
-
             ground_truth (tensor): Ground truth boxes and labels for a batch,
                 shape: [batch_size,num_objs,5] (last idx is the label).
         """
@@ -103,10 +102,8 @@ class RefineMultiBoxLoss(nn.Module):
         # match priors (default boxes) and ground truth boxes
         loc_t = torch.Tensor(num, num_priors, 4)
         conf_t = torch.LongTensor(num, num_priors)
-        loc_g = torch.Tensor(num, num_priors, 4)
         defaults = priors.data
         for idx in range(num):
-            predicts = loc_data[idx].data
             truths = targets[idx][:, :-1].data
             labels = targets[idx][:, -1].data
             if self.num_classes == 2:
@@ -124,16 +121,13 @@ class RefineMultiBoxLoss(nn.Module):
                     arm_loc_data[idx].data,
                     use_weight=False)
             else:
-                match(self.threshold, predicts, truths, defaults, self.variance, labels,
-                  loc_t, loc_g, conf_t, idx)
+                match(self.threshold, truths, defaults, self.variance, labels,
+                      loc_t, conf_t, idx)
 
         loc_t = loc_t.cuda()
-        loc_g = loc_g.cuda()
         conf_t = conf_t.cuda()
-
         # wrap targets
         loc_t = Variable(loc_t, requires_grad=False)
-        loc_g = Variable(loc_g, requires_grad=False)
         conf_t = Variable(conf_t, requires_grad=False)
 
         if use_arm and filter_object:
@@ -193,26 +187,15 @@ class RefineMultiBoxLoss(nn.Module):
             loc_p = loc_data[pos_idx].view(-1, 4)
             loc_t = loc_t[pos_idx].view(-1, 4)
             loss_l = F.smooth_l1_loss(loc_p, loc_t, size_average=False)
-            if not use_arm:
-                loc_g = loc_g[pos_idx].view(-1, 4)
-                priors = priors.expand_as(pos_idx)
-                priors = priors[pos_idx].view(-1, 4)
-                # c = torch.randn((5,16340,4))
-                # c = c.cuda()
-                # c = Variable(c, requires_grad=False)
-                
-                # c = c[pos_idx].view(-1, 4)
-                repul_loss = RepulsionLoss(sigma=0., variance=self.variance)
-                loss_l_repul = repul_loss(loc_p, loc_g, priors)
-
             N = num_pos.data.sum()
         else:
             loss_l = torch.zeros(1)
             N = 1.0
+        
+        gt_bboxes = [x[:,:-1] for x in targets]
+        print(loc_p)
+
 
         loss_l /= float(N)
         loss_c /= float(N)
-        if not use_arm:
-            loss_l_repul /= float(N)
-            return loss_l, loss_c, loss_l_repul
         return loss_l, loss_c
