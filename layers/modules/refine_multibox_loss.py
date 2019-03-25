@@ -6,7 +6,7 @@
 @Email: jilong.wang@watrix.ai
 @Description: file content
 @Date: 2019-03-24 19:02:11
-@LastEditTime: 2019-03-25 16:34:23
+@LastEditTime: 2019-03-25 17:25:15
 '''
 # -*- coding: utf-8 -*-
 # Written by yq_yao
@@ -192,10 +192,15 @@ class RefineMultiBoxLoss(nn.Module):
             loss_l = torch.zeros(1)
             N = 1.0
         
-        gt_bboxes = [x[:,:-1] for x in targets]
-        print(loc_p)
-
 
         loss_l /= float(N)
         loss_c /= float(N)
+        if not use_arm:
+            gt_bboxes = [x[:,:-1] for x in targets]
+            reploss = RepulsionLoss(variance=self.variance)
+            arm_rep_loss = reploss(loc_data, gt_bboxes, priors, pos_idx)
+            arm_rep_loss /= float(N)
+            return loss_l, loss_c, arm_rep_loss
+
+
         return loss_l, loss_c

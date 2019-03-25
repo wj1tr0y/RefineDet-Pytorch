@@ -6,7 +6,7 @@
 @Email: jilong.wang@watrix.ai
 @Description: file content
 @Date: 2019-03-24 19:01:30
-@LastEditTime: 2019-03-25 16:17:34
+@LastEditTime: 2019-03-25 17:52:43
 '''
 import torch
 import torch.nn as nn
@@ -164,6 +164,26 @@ def matrix_iou(a, b):
     area_b = np.prod(b[:, 2:] - b[:, :2], axis=1)
     return area_i / (area_a[:, np.newaxis] + area_b - area_i)
     
+# def IoG(box_a, box_b):
+#     """Compute the IoG of two sets of boxes.  
+#     E.g.:
+#         A ? B / A = A ? B / area(A)
+#     Args:
+#         box_a: (tensor) Ground truth bounding boxes, Shape: [num_objects,4]
+#         box_b: (tensor) Prior boxes from priorbox layers, Shape: [num_objects,4]
+#     Return:
+#         IoG: (tensor) Shape: [num_objects]
+#     """
+#     inter_xmin = torch.max(box_a[:, 0], box_b[:, 0])
+#     inter_ymin = torch.max(box_a[:, 1], box_b[:, 1])
+#     inter_xmax = torch.min(box_a[:, 2], box_b[:, 2])
+#     inter_ymax = torch.min(box_a[:, 3], box_b[:, 3])
+#     Iw = torch.clamp(inter_xmax - inter_xmin, min=0)
+#     Ih = torch.clamp(inter_ymax - inter_ymin, min=0)  
+#     I = Iw * Ih
+#     G = (box_a[:, 2] - box_a[:, 0]) * (box_a[:, 3] - box_a[:, 1])
+#     return I / G
+
 def IoG(box_a, box_b):
     """Compute the IoG of two sets of boxes.  
     E.g.:
@@ -174,15 +194,16 @@ def IoG(box_a, box_b):
     Return:
         IoG: (tensor) Shape: [num_objects]
     """
-    inter_xmin = torch.max(box_a[:, 0], box_b[:, 0])
-    inter_ymin = torch.max(box_a[:, 1], box_b[:, 1])
-    inter_xmax = torch.min(box_a[:, 2], box_b[:, 2])
-    inter_ymax = torch.min(box_a[:, 3], box_b[:, 3])
+    inter_xmin = torch.max(box_a[0], box_b[0])
+    inter_ymin = torch.max(box_a[1], box_b[1])
+    inter_xmax = torch.min(box_a[2], box_b[2])
+    inter_ymax = torch.min(box_a[3], box_b[3])
     Iw = torch.clamp(inter_xmax - inter_xmin, min=0)
     Ih = torch.clamp(inter_ymax - inter_ymin, min=0)  
     I = Iw * Ih
-    G = (box_a[:, 2] - box_a[:, 0]) * (box_a[:, 3] - box_a[:, 1])
+    G = (box_a[2] - box_a[0]) * (box_a[3] - box_a[1])
     return I / G
+
 
 def match(threshold, truths, priors, variances, labels, loc_t, conf_t, idx):
     """Match each prior box with the ground truth box of the highest jaccard
